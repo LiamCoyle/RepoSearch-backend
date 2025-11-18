@@ -44,7 +44,18 @@ FRONTEND_URL=http://localhost:3000
 GITHUB_ACCESS_TOKEN=your_github_personal_access_token_here
 ```
 
-**Note:** The `GITHUB_ACCESS_TOKEN` is optional. If provided, all GitHub API requests will be authenticated, which increases the rate limit from 60 requests/hour (unauthenticated) to 5,000 requests/hour (authenticated). To create a personal access token, go to GitHub Settings → Developer settings → Personal access tokens → Tokens (classic).
+**Note:** The `GITHUB_ACCESS_TOKEN` is optional but highly recommended for production use. If provided, all GitHub API requests will be authenticated using a Bearer token in the Authorization header, which increases the rate limit from 60 requests/hour (unauthenticated) to 5,000 requests/hour (authenticated).
+
+**To create a GitHub Personal Access Token:**
+1. Go to GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)
+2. Click "Generate new token (classic)"
+3. Give it a descriptive name (e.g., "RepoSearch API")
+4. Select the scopes you need (for public repository access, no scopes are required)
+5. Click "Generate token"
+6. Copy the token immediately (you won't be able to see it again)
+7. Add it to your `.env` file as `GITHUB_ACCESS_TOKEN=your_token_here`
+
+**Security Note:** Never commit your access token to version control. Always use environment variables or a secure secrets management system.
 
 ### Running the Server
 
@@ -189,7 +200,7 @@ Error responses include a JSON object with an `error` field:
 | `PORT` | Server port | `5000` |
 | `FLASK_DEBUG` | Enable debug mode | `false` |
 | `FRONTEND_URL` | Allowed CORS origins | `http://localhost:3000` |
-| `GITHUB_ACCESS_TOKEN` | GitHub personal access token for authenticated API requests (optional) | - |
+| `GITHUB_ACCESS_TOKEN` | GitHub personal access token for authenticated API requests (optional, recommended for production) | - |
 
 ## Development
 
@@ -235,8 +246,11 @@ docker run -p 5000:5000 \
   -e PORT=5000 \
   -e FLASK_DEBUG=false \
   -e FRONTEND_URL=http://localhost:3000 \
+  -e GITHUB_ACCESS_TOKEN=your_github_personal_access_token_here \
   github-api-backend
 ```
+
+**Note:** Include the `GITHUB_ACCESS_TOKEN` environment variable to enable authenticated GitHub API requests and increase the rate limit to 5,000 requests/hour.
 
 ### Using Docker Compose
 
@@ -252,6 +266,33 @@ docker-compose logs -f
 # Stop the container
 docker-compose down
 ```
+
+**Note:** The `docker-compose.yml` file uses `env_file: .env` to automatically load environment variables from a `.env` file in the backend directory. This means:
+
+1. **Create a `.env` file** (Recommended): Create a `.env` file in the backend directory with your environment variables:
+   ```env
+   GITHUB_ACCESS_TOKEN=your_token_here
+   FRONTEND_URL=https://repo-search-frontend-psi.vercel.app
+   PORT=5000
+   FLASK_DEBUG=false
+   ```
+   The `.env` file is already in `.gitignore`, so it won't be committed to version control.
+
+2. **How it works**:
+   - The `env_file: .env` directive loads all variables from `.env` into the container
+   - The `environment:` section can override specific values or provide defaults using `${VARIABLE:-default}` syntax
+   - Variables in `environment:` take precedence over `env_file:` values
+   - If a variable is not in `.env`, Docker Compose will look for it in your shell environment
+
+3. **Alternative - Shell environment variables**: You can also set variables in your shell before running docker-compose:
+   ```bash
+   export GITHUB_ACCESS_TOKEN=your_token_here
+   docker-compose up -d
+   ```
+
+4. **Production**: For production deployments, use your platform's secrets management (e.g., Railway, Heroku, AWS Secrets Manager) instead of `.env` files.
+
+**Important**: The `environment:` section in `docker-compose.yml` is necessary to pass variables into the container. The `.env` file alone is not automatically available inside Docker containers - you need either `env_file:` or `environment:` to make them accessible.
 
 The API will be available at `http://localhost:5000`.
 
