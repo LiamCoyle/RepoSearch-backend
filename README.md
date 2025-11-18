@@ -27,25 +27,7 @@ A Flask REST API that serves as a proxy to the GitHub API, providing endpoints f
 
 ### Installation
 
-1. Create a virtual environment (recommended):
-
-```bash
-python -m venv venv
-```
-
-2. Activate the virtual environment:
-
-**Windows:**
-```bash
-venv\Scripts\activate
-```
-
-**Linux/Mac:**
-```bash
-source venv/bin/activate
-```
-
-3. Install dependencies:
+Install dependencies:
 
 ```bash
 pip install -r requirements.txt
@@ -53,7 +35,7 @@ pip install -r requirements.txt
 
 ### Configuration
 
-Create a `.env` file in the backend directory (optional):
+Create a `.env` file in the backend directory:
 
 ```env
 PORT=5000
@@ -232,6 +214,44 @@ The GitHub API has rate limits:
 - **Unauthenticated**: 60 requests per hour per IP
 - **Authenticated**: 5,000 requests per hour
 
+For production use, consider adding GitHub authentication tokens to increase rate limits.
 
+## Docker
 
+### Building the Docker Image
+
+```bash
+docker build -t github-api-backend .
+```
+
+### Running with Docker
+
+```bash
+docker run -p 5000:5000 \
+  -e PORT=5000 \
+  -e FLASK_DEBUG=false \
+  -e FRONTEND_URL=http://localhost:3000 \
+  github-api-backend
+```
+
+### Using Docker Compose
+
+For easier development, use Docker Compose:
+
+```bash
+# Build and start the container
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop the container
+docker-compose down
+```
+
+The API will be available at `http://localhost:5000`.
+
+## License
+
+This project is part of a technical test for Wiremind.
 
