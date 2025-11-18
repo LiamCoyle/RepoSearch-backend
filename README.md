@@ -41,7 +41,10 @@ Create a `.env` file in the backend directory:
 PORT=5000
 FLASK_DEBUG=false
 FRONTEND_URL=http://localhost:3000
+GITHUB_ACCESS_TOKEN=your_github_personal_access_token_here
 ```
+
+**Note:** The `GITHUB_ACCESS_TOKEN` is optional. If provided, all GitHub API requests will be authenticated, which increases the rate limit from 60 requests/hour (unauthenticated) to 5,000 requests/hour (authenticated). To create a personal access token, go to GitHub Settings → Developer settings → Personal access tokens → Tokens (classic).
 
 ### Running the Server
 
@@ -186,6 +189,7 @@ Error responses include a JSON object with an `error` field:
 | `PORT` | Server port | `5000` |
 | `FLASK_DEBUG` | Enable debug mode | `false` |
 | `FRONTEND_URL` | Allowed CORS origins | `http://localhost:3000` |
+| `GITHUB_ACCESS_TOKEN` | GitHub personal access token for authenticated API requests (optional) | - |
 
 ## Development
 
@@ -212,9 +216,9 @@ curl "http://localhost:5000/github/get_repository_details?owner=facebook&repo=re
 
 The GitHub API has rate limits:
 - **Unauthenticated**: 60 requests per hour per IP
-- **Authenticated**: 5,000 requests per hour
+- **Authenticated**: 5,000 requests per hour (when `GITHUB_ACCESS_TOKEN` is set)
 
-For production use, consider adding GitHub authentication tokens to increase rate limits.
+The backend automatically uses authentication if the `GITHUB_ACCESS_TOKEN` environment variable is set. All GitHub API requests will include a Bearer token in the Authorization header.
 
 ## Docker
 
@@ -251,7 +255,5 @@ docker-compose down
 
 The API will be available at `http://localhost:5000`.
 
-## License
 
-This project is part of a technical test for Wiremind.
 

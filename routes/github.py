@@ -14,8 +14,10 @@ def search_repositories():
         if not query:
             logger.warning('Search request missing query parameter')
             return jsonify({'error': 'Query parameter is required'}), 400
-        logger.info(f'Searching repositories with query: {query}')
-        repositories = github_service.search_repositories(query)
+        per_page = request.args.get('per_page', 10, type=int)
+        page = request.args.get('page', 1, type=int)
+        logger.info(f'Searching repositories with query: {query}, page: {page}, per_page: {per_page}')
+        repositories = github_service.search_repositories(query, per_page, page)
         logger.debug(f'Found {len(repositories.get("items", []))} repositories')
         return jsonify(repositories)
     except Exception as e:
@@ -47,12 +49,33 @@ def get_repository_contributors():
         if not repo:
             return jsonify({'error': 'Repository parameter is required'}), 400
         
-        per_page = request.args.get('per_page', 100, type=int)
-        page = request.args.get('page', 1, type=int)
-        contributors = github_service.get_repository_contributors(owner, repo, per_page, page)
-        logger.info(f'Found {len(contributors)} contributors')
-        return jsonify(contributors)
+        # Fetch all contributors by paginating through pages
+        all_contributors = []
+        page = 1
+        per_page = 100
+        has_more = True
+
+        while has_more:
+            contributors_page = github_service.get_repository_contributors(owner, repo, per_page, page)
+            
+            if not contributors_page or len(contributors_page) == 0:
+                has_more = False
+            else:
+                all_contributors.extend(contributors_page)
+                
+                # If we got less than per_page, we've reached the end
+                if len(contributors_page) < per_page:
+                    has_more = False
+                else:
+                    page += 1
+                    # Safety limit: stop after 10 pages (1000 contributors)
+                    if page > 10:
+                        has_more = False
+        
+        logger.info(f'Found {len(all_contributors)} total contributors')
+        return jsonify(all_contributors)
     except Exception as e:
+        logger.error(f'Error getting repository contributors: {str(e)}')
         return jsonify({'error': str(e)}), 500
 
 @github_bp.route('/github/get_repository_issues', methods=['GET'])
@@ -96,4 +119,19 @@ def get_repository_by_id():
         return jsonify(repository)
     except Exception as e:
         logger.error(f'Error getting repository by ID: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+@github_bp.route('/github/get_repository_languages', methods=['GET'])
+def get_repository_languages():
+    try:
+        owner = request.args.get('owner')
+        if not owner:
+            return jsonify({'error': 'Owner parameter is required'}), 400
+        repo = request.args.get('repo')
+        if not repo:
+            return jsonify({'error': 'Repository parameter is required'}), 400
+        languages = github_service.get_repository_languages(owner, repo)
+        return jsonify(languages)
+    except Exception as e:
+        logger.error(f'Error getting repository languages: {str(e)}')
         return jsonify({'error': str(e)}), 500
