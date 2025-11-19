@@ -5,10 +5,11 @@ A Flask REST API that serves as a proxy to the GitHub API, providing endpoints f
 ## Features
 
 - 🔍 **Repository Search**: Search GitHub repositories using GitHub's search API with pagination support
-- 📊 **Repository Details**: Get detailed information about repositories by ID or owner/repo
+- 📊 **Repository Details**: Get detailed information about repositories by ID
 - 📝 **Commit History**: Retrieve commit history with configurable page size
-- 👥 **Contributor Management**: Fetch all repository contributors
+- 👥 **Contributor Management**: Fetch all repository contributors (including anonymous contributors)
 - 💻 **Language Analytics**: Get repository languages with byte counts
+- 🐛 **Issue Tracking**: Retrieve repository issues
 
 
 ## Tech Stack
@@ -86,24 +87,50 @@ Search for GitHub repositories.
 ```json
 {
   "total_count": 1000,
-  "items": [...]
+  "incomplete_results": false,
+  "items": [
+    {
+      "id": 10270250,
+      "name": "react",
+      "full_name": "facebook/react",
+      "description": "A declarative, efficient, and flexible JavaScript library...",
+      "stargazers_count": 230000,
+      "forks_count": 48000,
+      "language": "JavaScript",
+      "updated_at": "2024-01-15T10:30:00Z",
+      ...
+    }
+  ]
 }
 ```
 
-### Get Repository Details
+**Example:**
+```bash
+curl "http://localhost:5000/github/search?query=react&per_page=20&page=1"
+```
+
+### Get Repository by ID
 
 **GET** `/github/get_repository_by_id?id={id}`
 
 Get repository details by repository ID.
 
 **Parameters:**
-- `id` (required): Repository ID
+- `id` (required): Repository ID (numeric)
+
+**Response:**
+Repository object with full details including name, description, stars, forks, language, and more.
+
+**Example:**
+```bash
+curl "http://localhost:5000/github/get_repository_by_id?id=10270250"
+```
 
 ### Get Repository Commits
 
 **GET** `/github/get_repository_commits?owner={owner}&repo={repo}&per_page={per_page}`
 
-Get repository commits.
+Get repository commits in reverse chronological order (newest first).
 
 **Parameters:**
 - `owner` (required): Repository owner
@@ -111,20 +138,35 @@ Get repository commits.
 - `per_page` (optional): Number of commits per page (default: 100, max: 100)
 
 **Response:**
-Array of commit objects with author, committer, and commit information.
+Array of commit objects with author, committer, and commit information. Each commit includes:
+- `sha`: Commit hash
+- `commit`: Commit details (message, author, committer, date)
+- `author`: GitHub user object (if available)
+- `committer`: GitHub user object (if available)
+- `url`: API URL for the commit
+
+**Example:**
+```bash
+curl "http://localhost:5000/github/get_repository_commits?owner=facebook&repo=react&per_page=50"
+```
 
 ### Get Repository Issues
 
 **GET** `/github/get_repository_issues?owner={owner}&repo={repo}`
 
-Get repository issues.
+Get repository issues in chronological order (oldest first).
 
 **Parameters:**
 - `owner` (required): Repository owner
 - `repo` (required): Repository name
 
 **Response:**
-Array of issue objects.
+Array of issue objects with details including title, body, state, labels, assignees, and more.
+
+**Example:**
+```bash
+curl "http://localhost:5000/github/get_repository_issues?owner=facebook&repo=react"
+```
 
 ### Get Repository Languages
 
@@ -147,6 +189,11 @@ Object where keys are language names and values are bytes of code written in tha
 }
 ```
 
+**Example:**
+```bash
+curl "http://localhost:5000/github/get_repository_languages?owner=facebook&repo=react"
+```
+
 ### Get Repository Contributors
 
 **GET** `/github/get_repository_contributors?owner={owner}&repo={repo}`
@@ -158,7 +205,35 @@ Get all repository contributors. The endpoint automatically paginates through al
 - `repo` (required): Repository name
 
 **Response:**
-Array of contributor objects sorted by total contributions (descending).
+Array of contributor objects sorted by total contributions (descending). Each contributor object has a standardized format:
+
+**For regular users (type: "User"):**
+```json
+{
+  "type": "User",
+  "login": "username",
+  "id": 12345,
+  "avatar_url": "https://avatars.githubusercontent.com/u/12345",
+  "html_url": "https://github.com/username",
+  "contributions": 150,
+  "email": null,
+  "name": null
+}
+```
+
+**For anonymous contributors (type: "Anonymous"):**
+```json
+{
+  "type": "Anonymous",
+  "email": "user@example.com",
+  "name": "User Name",
+  "contributions": 50,
+  "login": null,
+  "id": null,
+  "avatar_url": null,
+  "html_url": null
+}
+```
 
 **Note:** The endpoint automatically fetches all contributors by paginating through the GitHub API until no more contributors are available. It includes anonymous contributors using the `anon=1` parameter.
 
@@ -169,6 +244,11 @@ Array of contributor objects sorted by total contributions (descending).
 - **Default Branch Only**: The endpoint only shows contributors to the default branch, while GitHub's website may show contributors across all branches.
 - **Repository Insights Changes**: For repositories with over 10,000 commits, GitHub has implemented changes that may affect how contributors are counted and displayed.
 
+**Example:**
+```bash
+curl "http://localhost:5000/github/get_repository_contributors?owner=facebook&repo=react"
+```
+
 
 
 ## GitHub API Integration
@@ -176,21 +256,22 @@ Array of contributor objects sorted by total contributions (descending).
 The backend acts as a proxy to the GitHub API, using the following endpoints:
 
 - `GET /search/repositories` - Search repositories
-- `GET /repos/{owner}/{repo}` - Get repository details
 - `GET /repositories/{id}` - Get repository by ID
 - `GET /repos/{owner}/{repo}/commits` - Get repository commits
-- `GET /repos/{owner}/{repo}/contributors` - Get repository contributors
+- `GET /repos/{owner}/{repo}/contributors` - Get repository contributors (with `anon=1` parameter)
+- `GET /repos/{owner}/{repo}/issues` - Get repository issues
 - `GET /repos/{owner}/{repo}/languages` - Get repository languages
 
-All requests use the GitHub API v3 and include proper headers for authentication and rate limiting.
+All requests use the GitHub API v3 and include proper headers for authentication and rate limiting. When a `GITHUB_ACCESS_TOKEN` is provided, all requests include a Bearer token in the Authorization header.
 
 ## Error Handling
 
 The API returns appropriate HTTP status codes:
 
 - `200` - Success
-- `400` - Bad Request (missing required parameters)
-- `500` - Internal Server Error
+- `400` - Bad Request (missing required parameters or invalid input)
+- `404` - Not Found (repository not found)
+- `500` - Internal Server Error (GitHub API errors or server issues)
 
 Error responses include a JSON object with an `error` field:
 
@@ -199,6 +280,12 @@ Error responses include a JSON object with an `error` field:
   "error": "Error message here"
 }
 ```
+
+Common error scenarios:
+- Missing required parameters (e.g., `query`, `owner`, `repo`, `id`)
+- Invalid repository ID or repository not found
+- GitHub API rate limit exceeded
+- Network or GitHub API errors
 
 
 ## Environment Variables
@@ -233,7 +320,7 @@ curl "http://localhost:5000/github/get_repository_by_id?id=10270250"
 # Get repository commits
 curl "http://localhost:5000/github/get_repository_commits?owner=facebook&repo=react&per_page=50"
 
-# Get repository contributors
+# Get repository contributors (automatically fetches all pages)
 curl "http://localhost:5000/github/get_repository_contributors?owner=facebook&repo=react"
 
 # Get repository issues
