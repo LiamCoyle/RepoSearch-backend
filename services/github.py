@@ -37,10 +37,6 @@ class GithubService:
         url = f'{self.api_url}/search/repositories?q={query}&per_page={per_page}&page={page}&sort=stars'
         return self._get(url)
 
-    def get_repository_details(self, owner : str, repo : str):
-        url = f'{self.api_url}/repos/{owner}/{repo}'
-        return self._get(url)
-
     def get_repository_contributors(self, owner : str, repo : str, per_page : int = 100, page : int = 1):
         """
         Get repository contributors using GitHub API endpoint:
@@ -54,6 +50,12 @@ class GithubService:
         return self._get(url)
 
     def get_repository_issues(self, owner : str, repo : str):
+        """
+        Get repository issues using GitHub API endpoint:
+        GET /repos/{owner}/{repo}/issues
+        
+        Returns issues in chronological order (oldest first).
+        """
         url = f'{self.api_url}/repos/{owner}/{repo}/issues'
         return self._get(url)
     
@@ -69,6 +71,12 @@ class GithubService:
         return self._get(url)
     
     def get_repository_by_id(self, repo_id : int):
+        """
+        Get repository details using GitHub API endpoint:
+        GET /repositories/{repo_id}
+        
+        Returns repository details including name, description, stars, forks, and issues.
+        """
         url = f'{self.api_url}/repositories/{repo_id}'
         return self._get(url)
     

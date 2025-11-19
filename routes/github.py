@@ -9,38 +9,41 @@ github_service = GithubService()
 
 @github_bp.route('/github/search', methods=['GET'])
 def search_repositories():
+    """
+    Search for GitHub repositories using GitHub API endpoint:
+    GET /search/repositories
+    
+    Returns repositories matching the search query.
+    Supports pagination with per_page and page parameters.
+    """
     try:
         query = request.args.get('query')
         if not query:
             logger.warning('Search request missing query parameter')
             return jsonify({'error': 'Query parameter is required'}), 400
+        
         per_page = request.args.get('per_page', 10, type=int)
         page = request.args.get('page', 1, type=int)
         logger.info(f'Searching repositories with query: {query}, page: {page}, per_page: {per_page}')
+        
         repositories = github_service.search_repositories(query, per_page, page)
         logger.debug(f'Found {len(repositories.get("items", []))} repositories')
+        
         return jsonify(repositories)
     except Exception as e:
         logger.error(f'Error searching repositories: {str(e)}')
         return jsonify({'error': str(e)}), 500
 
-@github_bp.route('/github/get_repository_details', methods=['GET'])
-def get_repository_details():
-    try:
-        owner = request.args.get('owner')
-        if not owner:
-            return jsonify({'error': 'Owner parameter is required'}), 400
-        repo = request.args.get('repo')
-        if not repo:
-            return jsonify({'error': 'Repository parameter is required'}), 400
-        repository = github_service.get_repository_details(owner, repo)
-        return jsonify(repository)
-    except Exception as e:
-        logger.error(f'Error getting repository details: {str(e)}')
-        return jsonify({'error': str(e)}), 500
-
 @github_bp.route('/github/get_repository_contributors', methods=['GET'])
 def get_repository_contributors():
+    """
+    Get repository contributors using GitHub API endpoint:
+    GET /repos/{owner}/{repo}/contributors
+    
+    Returns contributors sorted by number of commits (descending).
+    Supports pagination with per_page (max 100) and page parameters.
+    Includes anonymous contributors by setting anon=1.
+    """
     try:
         owner = request.args.get('owner')
         if not owner:
@@ -125,6 +128,12 @@ def _standardize_contributor(contributor):
 
 @github_bp.route('/github/get_repository_issues', methods=['GET'])
 def get_repository_issues():
+    """
+    Get repository issues using GitHub API endpoint:
+    GET /repos/{owner}/{repo}/issues
+    
+    Returns issues in chronological order (oldest first).
+    """
     try:
         owner = request.args.get('owner')
         if not owner:
@@ -140,6 +149,13 @@ def get_repository_issues():
 
 @github_bp.route('/github/get_repository_commits', methods=['GET'])
 def get_repository_commits():
+    """
+    Get repository commits using GitHub API endpoint:
+    GET /repos/{owner}/{repo}/commits
+    
+    Returns commits in reverse chronological order (newest first).
+    Supports pagination with per_page parameter (max 100).
+    """
     try:
         owner = request.args.get('owner')
         if not owner:
@@ -156,6 +172,12 @@ def get_repository_commits():
 
 @github_bp.route('/github/get_repository_by_id', methods=['GET'])
 def get_repository_by_id():
+    """
+    Get repository details using GitHub API endpoint:
+    GET /repositories/{repo_id}
+    
+    Returns repository details including name, description, stars, forks, and issues.
+    """
     try:
         repo_id = request.args.get('id')
         if not repo_id:
@@ -168,6 +190,12 @@ def get_repository_by_id():
 
 @github_bp.route('/github/get_repository_languages', methods=['GET'])
 def get_repository_languages():
+    """
+    Get repository languages using GitHub API endpoint:
+    GET /repos/{owner}/{repo}/languages
+    
+    Returns a dictionary where keys are language names and values are bytes of code.
+    """
     try:
         owner = request.args.get('owner')
         if not owner:

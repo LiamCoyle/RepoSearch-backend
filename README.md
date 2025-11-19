@@ -92,14 +92,6 @@ Search for GitHub repositories.
 
 ### Get Repository Details
 
-**GET** `/github/get_repository_details?owner={owner}&repo={repo}`
-
-Get repository details by owner and repository name.
-
-**Parameters:**
-- `owner` (required): Repository owner (username or organization)
-- `repo` (required): Repository name
-
 **GET** `/github/get_repository_by_id?id={id}`
 
 Get repository details by repository ID.
@@ -234,9 +226,6 @@ curl http://localhost:5000/health
 
 # Search repositories
 curl "http://localhost:5000/github/search?query=react&per_page=20&page=1"
-
-# Get repository details
-curl "http://localhost:5000/github/get_repository_details?owner=facebook&repo=react"
 
 # Get repository by ID
 curl "http://localhost:5000/github/get_repository_by_id?id=10270250"
