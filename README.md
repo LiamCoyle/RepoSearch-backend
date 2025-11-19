@@ -4,12 +4,11 @@ A Flask REST API that serves as a proxy to the GitHub API, providing endpoints f
 
 ## Features
 
-- 🔍 **Repository Search**: Search GitHub repositories using GitHub's search API
+- 🔍 **Repository Search**: Search GitHub repositories using GitHub's search API with pagination support
 - 📊 **Repository Details**: Get detailed information about repositories by ID or owner/repo
-- 📝 **Commit History**: Retrieve commit history (last 100 commits)
-- 👥 **Contributor Management**: Fetch repository contributors with pagination support
-- 🏥 **Health Check**: Health monitoring endpoint
-- 🔒 **CORS Support**: Configured for frontend integration
+- 📝 **Commit History**: Retrieve commit history with configurable page size
+- 👥 **Contributor Management**: Fetch all repository contributors
+- 💻 **Language Analytics**: Get repository languages with byte counts
 
 
 ## Tech Stack
@@ -44,18 +43,8 @@ FRONTEND_URL=http://localhost:3000
 GITHUB_ACCESS_TOKEN=your_github_personal_access_token_here
 ```
 
-**Note:** The `GITHUB_ACCESS_TOKEN` is optional but highly recommended for production use. If provided, all GitHub API requests will be authenticated using a Bearer token in the Authorization header, which increases the rate limit from 60 requests/hour (unauthenticated) to 5,000 requests/hour (authenticated).
+**Note:** The `GITHUB_ACCESS_TOKEN` is optional but highly recommended. If provided, all GitHub API requests will be authenticated using a Bearer token in the Authorization header, which increases the rate limit from 60 requests/hour (unauthenticated) to 5,000 requests/hour (authenticated).
 
-**To create a GitHub Personal Access Token:**
-1. Go to GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)
-2. Click "Generate new token (classic)"
-3. Give it a descriptive name (e.g., "RepoSearch API")
-4. Select the scopes you need (for public repository access, no scopes are required)
-5. Click "Generate token"
-6. Copy the token immediately (you won't be able to see it again)
-7. Add it to your `.env` file as `GITHUB_ACCESS_TOKEN=your_token_here`
-
-**Security Note:** Never commit your access token to version control. Always use environment variables or a secure secrets management system.
 
 ### Running the Server
 
@@ -84,12 +73,14 @@ Returns the health status of the API.
 
 ### Search Repositories
 
-**GET** `/github/search?query={search_query}`
+**GET** `/github/search?query={search_query}&per_page={per_page}&page={page}`
 
 Search for GitHub repositories.
 
 **Parameters:**
 - `query` (required): Search query string
+- `per_page` (optional): Number of results per page (default: 10, max: 100)
+- `page` (optional): Page number (default: 1)
 
 **Response:**
 ```json
@@ -130,39 +121,63 @@ Get repository commits.
 **Response:**
 Array of commit objects with author, committer, and commit information.
 
-### Get Repository Contributors
+### Get Repository Issues
 
-**GET** `/github/get_repository_contributors?owner={owner}&repo={repo}&per_page={per_page}&page={page}`
+**GET** `/github/get_repository_issues?owner={owner}&repo={repo}`
 
-Get repository contributors with pagination support.
+Get repository issues.
 
 **Parameters:**
 - `owner` (required): Repository owner
 - `repo` (required): Repository name
-- `per_page` (optional): Number of contributors per page (default: 100, max: 100)
-- `page` (optional): Page number (default: 1)
+
+**Response:**
+Array of issue objects.
+
+### Get Repository Languages
+
+**GET** `/github/get_repository_languages?owner={owner}&repo={repo}`
+
+Get repository languages with byte counts.
+
+**Parameters:**
+- `owner` (required): Repository owner
+- `repo` (required): Repository name
+
+**Response:**
+Object where keys are language names and values are bytes of code written in that language.
+
+```json
+{
+  "JavaScript": 1234567,
+  "TypeScript": 987654,
+  "Python": 543210
+}
+```
+
+### Get Repository Contributors
+
+**GET** `/github/get_repository_contributors?owner={owner}&repo={repo}`
+
+Get all repository contributors. The endpoint automatically paginates through all available contributors.
+
+**Parameters:**
+- `owner` (required): Repository owner
+- `repo` (required): Repository name
 
 **Response:**
 Array of contributor objects sorted by total contributions (descending).
 
-**Note:** GitHub API only links the first 500 author email addresses to GitHub users. The rest appear as anonymous contributors.
+**Note:** The endpoint automatically fetches all contributors by paginating through the GitHub API until no more contributors are available. It includes anonymous contributors using the `anon=1` parameter.
 
-## Project Structure
+**Important:** There may still be discrepancies between the API count and GitHub's website display due to GitHub API limitations:
 
-```
-backend/
-├── app.py                 # Flask application entry point
-├── routes/                # API route handlers
-│   ├── github.py         # GitHub-related endpoints
-│   └── health.py         # Health check endpoint
-├── services/              # Business logic
-│   └── github.py         # GitHub API service
-├── utils/                 # Utility functions
-│   └── logger.py         # Logging configuration
-├── logs/                  # Application logs
-├── requirements.txt       # Python dependencies
-└── .env                  # Environment variables (optional)
-```
+- **500 Email Address Limit**: Only the first 500 unique author email addresses in a repository are linked to GitHub user accounts. Contributors beyond this limit appear as anonymous.
+- **API Caching**: The API caches contributor data for performance, which can result in information that is a few hours old.
+- **Default Branch Only**: The endpoint only shows contributors to the default branch, while GitHub's website may show contributors across all branches.
+- **Repository Insights Changes**: For repositories with over 10,000 commits, GitHub has implemented changes that may affect how contributors are counted and displayed.
+
+
 
 ## GitHub API Integration
 
@@ -173,6 +188,7 @@ The backend acts as a proxy to the GitHub API, using the following endpoints:
 - `GET /repositories/{id}` - Get repository by ID
 - `GET /repos/{owner}/{repo}/commits` - Get repository commits
 - `GET /repos/{owner}/{repo}/contributors` - Get repository contributors
+- `GET /repos/{owner}/{repo}/languages` - Get repository languages
 
 All requests use the GitHub API v3 and include proper headers for authentication and rate limiting.
 
@@ -217,10 +233,25 @@ You can test the API using curl or any HTTP client:
 curl http://localhost:5000/health
 
 # Search repositories
-curl "http://localhost:5000/github/search?query=react"
+curl "http://localhost:5000/github/search?query=react&per_page=20&page=1"
 
 # Get repository details
 curl "http://localhost:5000/github/get_repository_details?owner=facebook&repo=react"
+
+# Get repository by ID
+curl "http://localhost:5000/github/get_repository_by_id?id=10270250"
+
+# Get repository commits
+curl "http://localhost:5000/github/get_repository_commits?owner=facebook&repo=react&per_page=50"
+
+# Get repository contributors
+curl "http://localhost:5000/github/get_repository_contributors?owner=facebook&repo=react"
+
+# Get repository issues
+curl "http://localhost:5000/github/get_repository_issues?owner=facebook&repo=react"
+
+# Get repository languages
+curl "http://localhost:5000/github/get_repository_languages?owner=facebook&repo=react"
 ```
 
 ## Rate Limiting
@@ -231,68 +262,10 @@ The GitHub API has rate limits:
 
 The backend automatically uses authentication if the `GITHUB_ACCESS_TOKEN` environment variable is set. All GitHub API requests will include a Bearer token in the Authorization header.
 
-## Docker
 
-### Building the Docker Image
 
-```bash
-docker build -t github-api-backend .
-```
 
-### Running with Docker
 
-```bash
-docker run -p 5000:5000 \
-  -e PORT=5000 \
-  -e FLASK_DEBUG=false \
-  -e FRONTEND_URL=http://localhost:3000 \
-  -e GITHUB_ACCESS_TOKEN=your_github_personal_access_token_here \
-  github-api-backend
-```
-
-**Note:** Include the `GITHUB_ACCESS_TOKEN` environment variable to enable authenticated GitHub API requests and increase the rate limit to 5,000 requests/hour.
-
-### Using Docker Compose
-
-For easier development, use Docker Compose:
-
-```bash
-# Build and start the container
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop the container
-docker-compose down
-```
-
-**Note:** The `docker-compose.yml` file uses `env_file: .env` to automatically load environment variables from a `.env` file in the backend directory. This means:
-
-1. **Create a `.env` file** (Recommended): Create a `.env` file in the backend directory with your environment variables:
-   ```env
-   GITHUB_ACCESS_TOKEN=your_token_here
-   FRONTEND_URL=https://repo-search-frontend-psi.vercel.app
-   PORT=5000
-   FLASK_DEBUG=false
-   ```
-   The `.env` file is already in `.gitignore`, so it won't be committed to version control.
-
-2. **How it works**:
-   - The `env_file: .env` directive loads all variables from `.env` into the container
-   - The `environment:` section can override specific values or provide defaults using `${VARIABLE:-default}` syntax
-   - Variables in `environment:` take precedence over `env_file:` values
-   - If a variable is not in `.env`, Docker Compose will look for it in your shell environment
-
-3. **Alternative - Shell environment variables**: You can also set variables in your shell before running docker-compose:
-   ```bash
-   export GITHUB_ACCESS_TOKEN=your_token_here
-   docker-compose up -d
-   ```
-
-4. **Production**: For production deployments, use your platform's secrets management (e.g., Railway, Heroku, AWS Secrets Manager) instead of `.env` files.
-
-**Important**: The `environment:` section in `docker-compose.yml` is necessary to pass variables into the container. The `.env` file alone is not automatically available inside Docker containers - you need either `env_file:` or `environment:` to make them accessible.
 
 The API will be available at `http://localhost:5000`.
 

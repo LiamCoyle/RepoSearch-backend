@@ -48,8 +48,9 @@ class GithubService:
         
         Returns contributors sorted by number of commits (descending).
         Supports pagination with per_page (max 100) and page parameters.
+        Includes anonymous contributors by setting anon=1.
         """
-        url = f'{self.api_url}/repos/{owner}/{repo}/contributors?per_page={per_page}&page={page}'
+        url = f'{self.api_url}/repos/{owner}/{repo}/contributors?anon=1&per_page={per_page}&page={page}'
         return self._get(url)
 
     def get_repository_issues(self, owner : str, repo : str):

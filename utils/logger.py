@@ -1,4 +1,11 @@
 class Logger:
+    _instance = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(Logger, cls).__new__(cls)
+        return cls._instance
+    
     def __init__(self):
         pass
     
@@ -20,9 +27,10 @@ class Logger:
 def get_logger():
     """
     Get a simple logger instance that prints to console with level prefix.
+    Returns the same singleton instance on every call.
 
     Returns:
-        Logger instance
+        Logger instance (singleton)
     """
     return Logger()
 
